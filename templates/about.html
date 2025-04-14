@@ -1,0 +1,253 @@
+{% extends "base.html" %} {% block title %}About - SignFlow{% endblock %} {%
+block content %}
+
+<main class="about-content">
+  <section class="about-intro">
+    <h1>About SignFlow</h1>
+    <p>
+      Our SignFlow: Real-Time Sign Language Translation system bridges the
+      communication gap between sign language users and the wider community
+      using AI-powered gesture recognition. The system translates Indian Sign
+      Language (ISL) gestures into text and speech in real-time, making
+      interactions more inclusive and accessible. Additionally, it converts text
+      and speech into corresponding sign language gestures, enabling a seamless
+      two-way communication experience. Designed with advanced computer vision
+      and deep learning models, our platform empowers individuals with hearing
+      or speech impairments by providing an intuitive and efficient way to
+      communicate effortlessly.
+    </p>
+  </section>
+
+  <section class="features">
+    <h2>Key Features</h2>
+    <div class="feature-cards">
+      <!-- <div class="feature-card">
+        <img
+          src="{{ url_for('static', filename='images/Real-Time Sign Translation.png') }}"
+          alt="Real-time Sign Recognition"
+        />
+        <h3>Real-Time Sign Recognition</h3>
+        <p>
+          Accurately detects and translates ISL gestures into text and speech using AI-powered computer vision.
+        </p>
+      </div> -->
+      <div class="feature-card">
+        <div class="card-inner">
+          <div class="card-front">
+            <img
+              src="{{ url_for('static', filename='images/Real-Time Sign Translation.png') }}"
+              alt="Real-time Sign Recognition"
+            />
+            <h3>Real-Time Sign Recognition</h3>
+          </div>
+          <div class="card-back">
+            <p>
+              Accurately detects and translates ISL gestures into text and
+              speech using AI-powered computer vision.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="card-inner">
+          <div class="card-front">
+            <img
+              src="{{ url_for('static', filename='images/Two-way communication.jpg') }}"
+              alt="Two-Way Communication"
+            />
+            <h3>Two-Way Communication</h3>
+          </div>
+          <div class="card-back">
+            <p>
+              Converts both sign language to text/speech and text/speech to sign
+              gestures for seamless interaction.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="card-inner">
+          <div class="card-front">
+            <img
+              src="{{ url_for('static', filename='images/Multi-Platform.jpg') }}"
+              alt="Multi-platform Support"
+            />
+            <h3>Multi-platform Support</h3>
+          </div>
+          <div class="card-back">
+            <p>
+              Access SignFlow seamlessly across all your devices with perfect
+              synchronization and consistent performance.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="card-inner">
+          <div class="card-front">
+            <img
+              src="{{ url_for('static', filename='images/Speech Output.avif') }}"
+              alt="Speech Output for Recognized Signs"
+            />
+            <h3>Speech Output for Recognized Signs</h3>
+          </div>
+          <div class="card-back">
+            <p>
+              Converts detected gestures into spoken words using text-to-speech
+              (TTS) for enhanced communication.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="card-inner">
+          <div class="card-front">
+            <img
+              src="{{ url_for('static', filename='images/User-feedback.jpg') }}"
+              alt="User Feedback System"
+            />
+            <h3>User Feedback System</h3>
+          </div>
+          <div class="card-back">
+            <p>
+              Includes a feedback form to collect user responses and improve
+              accuracy and usability over time.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- <div class="feature-card">
+        <img
+          src="{{ url_for('static', filename='images/Two-way communication.jpg') }}"
+          alt="Two-Way Communication"
+        />
+        <h3>Two-Way Communication</h3>
+        <p>
+          Converts both sign language to text/speech and text/speech to sign gestures for seamless interaction.
+        </p>
+      </div> -->
+
+      <!-- <div class="feature-card">
+        <img
+          src="{{ url_for('static', filename='images/Multi-Platform.jpg') }}"
+          alt="Multi-platform Support"
+        />
+        <h3>Multi-platform Support</h3>
+        <p>
+          Access SignFlow seamlessly across all your devices with perfect
+          synchronization and consistent performance.
+        </p>
+      </div> -->
+      <!-- <div class="feature-card">
+        <img
+          src="{{ url_for('static', filename='images/Speech Output.avif') }}"
+          alt="Speech Output for Recognized Signs"
+        />
+        <h3>Speech Output for Recognized Signs</h3>
+        <p>
+          Converts detected gestures into spoken words using text-to-speech
+          (TTS) for enhanced communication.
+        </p>
+      </div> -->
+      <!-- <div class="feature-card">
+        <img
+          src="{{ url_for('static', filename='images/User-feedback.jpg') }}"
+          alt="User Feedback System"
+        />
+        <h3>User Feedback System</h3>
+        <p>
+          Includes a feedback form to collect user responses and improve
+          accuracy and usability over time.
+        </p>
+      </div> -->
+    </div>
+  </section>
+
+  <!-- <section class="how-to-use">
+    <h2>How to Use SignFlow</h2>
+    <div class="steps">
+      <div class="step">
+        <span class="step-number">1</span>
+        <h3>Choose Translation Mode</h3>
+        <p>
+          Select between Sign-to-Text or Text-to-Sign translation modes based on
+          your communication needs.
+        </p>
+      </div>
+      <div class="step">
+        <span class="step-number">2</span>
+        <h3>Position Camera</h3>
+        <p>
+          Ensure proper lighting and positioning for optimal recognition
+          accuracy. Follow the on-screen guidelines.
+        </p>
+      </div>
+      <div class="step">
+        <span class="step-number">3</span>
+        <h3>Start Translation</h3>
+        <p>
+          Begin real-time translation with a single click. The AI will instantly
+          process and translate your communications.
+        </p>
+      </div>
+      <div class="step">
+        <span class="step-number">4</span>
+        <h3>Review and Share</h3>
+        <p>
+          Review the translations, make any necessary adjustments, and easily
+          share the results with others.
+        </p>
+      </div>
+    </div>
+  </section> -->
+
+  <!-- <section class="faq-section">
+    <h2>Frequently Asked Questions</h2>
+  
+    <div class="faq-item">
+      <button class="faq-question">
+        1. How does SignFlow recognize signs?
+        <span class="icon">▼</span>
+      </button>
+      <div class="faq-answer">
+        <p>SignFlow uses AI-powered computer vision models to detect and interpret Indian Sign Language (ISL) gestures in real-time using your webcam.</p>
+      </div>
+    </div>
+  
+    <div class="faq-item">
+      <button class="faq-question">
+        2. Do I need to install anything?
+        <span class="icon">▼</span>
+      </button>
+      <div class="faq-answer">
+        <p>No installation is required. SignFlow runs directly on your browser with access to your webcam.</p>
+      </div>
+    </div>
+  
+    <div class="faq-item">
+      <button class="faq-question">
+        3. Can it convert text or speech into signs?
+        <span class="icon">▼</span>
+      </button>
+      <div class="faq-answer">
+        <p>Yes, it supports two-way communication, converting text or speech input into animated ISL sign gestures.</p>
+      </div>
+    </div>
+  
+    <div class="faq-item">
+      <button class="faq-question">
+        4. Is SignFlow mobile-friendly?
+        <span class="icon">▼</span>
+      </button>
+      <div class="faq-answer">
+        <p>Absolutely! SignFlow supports multi-platform access and works smoothly on both desktop and mobile devices.</p>
+      </div>
+    </div>
+  </section> -->
+
+
+</main>
+{% endblock %}

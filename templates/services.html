@@ -1,0 +1,157 @@
+{% extends "base.html" %} {% block title %}Services - SignFlow{% endblock %} {%
+  block content %}
+  <main class="services-content">
+    <h1>Our Services</h1>
+    <h4>Choose a service below to either convert Indian Sign Language to readable
+      text or transform text into animated sign gestures.</h4>
+  
+  
+    <button id="backToServices" class="back-button" onclick="showTranslation()">
+      ← Back to Services
+    </button>
+  
+    <div class="service-cards" id="serviceCards">
+      <div class="service-card" onclick="showTranslation('sign-to-text')">
+        <img
+          src="https://blog.authot.com/content/images/size/w1200/wordpress/2022/04/IA-et-langue-des-signes.png"
+          alt="Sign to Text"
+        />
+        <h3>Sign Language to Text</h3>
+        <p>Convert sign language gestures into readable text in real-time</p>
+      </div>
+      <div class="service-card" onclick="showTranslation('text-to-sign')">
+        <img
+          src="{{ url_for('static', filename='images/Text to Sign.jpg') }}"
+          alt="Text to Sign"
+        />
+        <h3>Text to Sign Language</h3>
+        <p>Transform written text into animated sign language gestures</p>
+      </div>
+    </div>
+  
+    <div class="translation-section" id="signToTextSection">
+      <!-- <h2>Sign Language to Text Translation</h2> -->
+  
+      <div class="section-header">
+        <h2>Sign Language to Text Translation</h2>
+        <button class="reset-icon-button" onclick="resetSignToTextSection()" title="Reset translation">
+          <i class="fas fa-redo"></i>
+        </button>
+      </div>
+  
+      <div class="translation-container">
+        <div class="camera-feed">
+          <video id="videoFeed" autoplay playsinline></video>
+          <img id="cameraFeed" />
+        </div>
+        <div class="translation-output">
+          <h3>Translation</h3>
+          <div id="translationText" class="translation-text">
+            Translation will appear here...
+          </div>
+        </div>
+      </div>
+      <div class="control-buttons">
+        <button id="startCamera" onclick="accessCamera()">Access Camera</button>
+        <button id="stopCamera" onclick="stopCamera()">Stop Camera</button>
+        <button onclick="uploadVideo()">Upload Video</button>
+        <button id="startTranslation" onclick="startTranslation()" disabled>
+          Start Translation
+        </button>
+        <button onclick="playTranslation()">Play Translation</button>
+      </div>
+  
+      <div class="service-description">
+        <h3>How Sign Language to Text Works</h3>
+        <ul>
+          <li>
+            Supports Indian Sign Language (ISL), including alphabets, numbers, and
+            emergency signs.
+          </li>
+          <li>
+            Advanced AI-powered camera detection recognizes hand gestures in
+            real-time.
+          </li>
+          <li>
+            Support for multiple sign language dialects and regional variations
+          </li>
+          <li>
+            Transforms hand gestures into text and speech, enabling seamless
+            communication.
+          </li>
+          <li>
+            Option to upload pre-recorded videos for translation of emergency
+            words.
+          </li>
+          <li>
+            Works with both single-hand and two-hand gestures for better
+            recognition.
+          </li>
+          <li>Translation history stored in the database.</li>
+        </ul>
+      </div>
+    </div>
+  
+    <div class="translation-section" id="textToSignSection">
+      <!-- <h2>Text to Sign Language Translation</h2> -->
+      <div class="section-header">
+        <h2>Text to Sign Language Translation</h2>
+        <button class="reset-icon-button" onclick="resetTextToSignSection()" title="Reset translation">
+          <i class="fas fa-redo"></i>
+        </button>
+      </div>
+  
+      <div class="translation-container">
+        <div class="text-input">
+          <textarea
+            id="textInput"
+            placeholder="Enter text to translate..."
+          ></textarea>
+        </div>
+        <div class="animation-output">
+          <h3>Sign Language Animation</h3>
+          <div id="animationContainer" class="animation-container">
+            Animation will appear here...
+          </div>
+        </div>
+      </div>
+      <div class="control-buttons">
+        <button onclick="translateText('text')">Translate</button>
+        <button id="playAnimation" onclick="playAnimation()">
+          Record Speech
+        </button>
+        <!-- <button onclick="resetTranslation()">Reset</button> -->
+      </div>
+      <div class="service-description">
+        <h3>How Text to Sign Language Works</h3>
+        <ul>
+          <li>
+            Converts text into sign language visuals for seamless communication.
+          </li>
+          <li>
+            Allows to record the speech for translation to ensure seamless
+            communication.
+          </li>
+          <li>
+            Displays sign language gestures for words and letters in real time.
+          </li>
+          <li>
+            Uses pre-recorded gesture videos for commonly used emergency signs.
+          </li>
+          <li>
+            For words without a direct sign, it spells them out using alphabet
+            gestures.
+          </li>
+          <li>
+            Supports Indian Sign Language (ISL) to ensure accurate translations.
+          </li>
+          <li>
+            Uses AI-driven gesture mapping to ensure accurate and smooth
+            translations.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </main>
+  {% endblock %}
+  
