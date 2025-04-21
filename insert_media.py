@@ -1,5 +1,8 @@
+# insert_media.py
+
 import os
-from model import MediaDataset, db
+from model import MediaDataset
+from db_init import db
 from app import app
 
 alphabet_folder = "static/alphabets_numbers"
@@ -21,6 +24,7 @@ def insert_alphabets_and_gifs():
                 if not MediaDataset.query.filter_by(file_path=file_path).first():
                     entry = MediaDataset(
                         media_type="image",
+                        label = letter,
                         file_path=file_path,
                         category=category,
                         description=f"Sign language for '{letter}'"
@@ -34,6 +38,7 @@ def insert_alphabets_and_gifs():
                 if not MediaDataset.query.filter_by(file_path=file_path).first():
                     entry = MediaDataset(
                         media_type="video",
+                        label = gesture,
                         file_path=file_path,
                         category="Emergency Sign",
                         description=f"Emergency gesture for '{gesture}'"

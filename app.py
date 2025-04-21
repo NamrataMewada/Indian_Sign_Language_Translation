@@ -1,26 +1,22 @@
+import os
+from gtts import gTTS
+from db_init import db
+from config import Config
+from datetime import datetime
+import speech_recognition as sr
 from flask_bcrypt import Bcrypt
 from flask_session import Session
-from config import Config
-from model import db, GestureTranslation, MediaDataset, UserUpload, User, TextSignMapping, Feedback
-from flask import Flask, render_template, request, jsonify, Response, session, copy_current_request_context
-import numpy as np
-import tensorflow as tf
-import mediapipe as mp
-import os
-import time
-import pickle
-from collections import deque, Counter
-import cv2
 from sqlalchemy.exc import SQLAlchemyError
-from werkzeug.utils import secure_filename
+from model import  UserUpload, User, TextSignMapping, Feedback
 from flask_jwt_extended import create_access_token, JWTManager
-from gtts import gTTS
-import speech_recognition as sr
-from datetime import datetime
+from flask import Flask, render_template, request, jsonify, Response, session, copy_current_request_context
 
-# from helper_functions.constants import *
-# from helper_functions.db_utils import fetch_media_from_db
-# from helper_functions.video_processing import *
+from helper_functions.constants import *
+from helper_functions.db_utils import *
+from helper_functions.video_processing import *
+from helper_functions import realtime_utils
+from helper_functions.realtime_utils import generate_frames, load_model
+
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -31,333 +27,7 @@ bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 Session(app)
 
-# ================== Constants ==================
-IMG_SIZE = (224, 224)
-SEQUENCE_LENGTH = 20  # Number of frames required for prediction
-CLASS_MAP = {0: 'Accident', 1: 'Call', 2: 'Doctor', 3: 'Help', 4: 'Hot', 5: 'Lose', 6: 'Pain', 7: 'Thief'}
-
-# ================== File Paths ==================
-VIDEO_FOLDER = "static/upload_media/videos"
-AUDIO_FOLDER = "static/upload_media/recorded_speech"
-EMERGENCY_SIGNS_PATH = "static/emergency_words_gif"
-PROCESSED_AUDIO_TRANSLATION = "static/translated_audio"
-
-# ================== Creating the folders for uploads ==================
-for folder in [VIDEO_FOLDER, AUDIO_FOLDER,PROCESSED_AUDIO_TRANSLATION]:
-    os.makedirs(folder, exist_ok=True)
-
-
-# ==================Preload available emergency words ==================
-emergency_words = {f.split('.')[0].lower(): f for f in os.listdir(EMERGENCY_SIGNS_PATH)}
-
-
-# ================== Emergency words model loading ==================
-try:
-    video_model = tf.keras.models.load_model("Gesture_cnn_lstm_model.h5")
-    base_model = tf.keras.applications.VGG16(weights="imagenet", include_top=False, input_shape=(224, 224, 3))
-    cnn_out = tf.keras.layers.GlobalAveragePooling2D()(base_model.output)
-    cnn_model = tf.keras.Model(inputs=base_model.input, outputs=cnn_out)
-except Exception as e:
-    print(f"Error loading the model: {e}")
-    video_model, cnn_model = None, None
-
-# ================== Initialize Mediapipe Hands ==================
-mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(static_image_mode=True, min_detection_confidence=0.3)
-mp_drawing = mp.solutions.drawing_utils
-
-
-# ================== Alphabets and Numbers Model Loading ==================  
-try:
-    with open('MODEL_LATEST_TUNING_augment_islrtc.p','rb') as f:
-        model_dict = pickle.load(f)
-        alpha_model = model_dict['model']     
-except Exception as e:
-    print(f"Error loading the model: {e}")
-    alpha_model = None
-    
-# ================== Real-Time Constants ==================
-prev_prediction = ""
-hold_counter = 0
-hold_threshold = 15
-last_hand_time = time.time()
-space_added = False
-
-# Better buffer using deque
-prediction_buffer = deque(maxlen=15)  # Buffer size for smoothing
-confidence_threshold = 10  # Min occurrences in buffer to consider stable
-
-# Sentence buffers
-current_sentence = ""
-final_sentence = ""
-final_sentences_history = []
-
-# Constants for duplicate letter control
-last_letter_added = ""
-last_added_time = 0
-letter_repeat_cooldown = 1.0  # in seconds
-
-# ================== Hand Landmark Extraction ==================
-def extract_hand_landmarks(img):
-    """Extract hand landmarks from an image/frame and normalize coordinates."""
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    results = hands.process(img_rgb)
-
-    data_aux = []
-    hand_landmarks_list = results.multi_hand_landmarks or []
-
-    if len(hand_landmarks_list) == 1:
-        hand_landmarks_list.append(None) 
-
-    for hand_landmarks in hand_landmarks_list:
-        x_vals, y_vals = [], []
-        if hand_landmarks:
-            for landmark in hand_landmarks.landmark:
-                x_vals.append(landmark.x)
-                y_vals.append(landmark.y)
-
-            min_x, max_x = min(x_vals), max(x_vals)
-            min_y, max_y = min(y_vals), max(y_vals)
-
-            for landmark in hand_landmarks.landmark:
-                norm_x = (landmark.x - min_x) / (max_x - min_x + 1e-6)
-                norm_y = (landmark.y - min_y) / (max_y - min_y + 1e-6)
-                data_aux.extend([norm_x, norm_y])
-        else:
-            data_aux.extend([0] * 42)
-
-    return np.array([data_aux]) if len(data_aux) == 84 else None
-
-# ================== Saving the translated sentence in database ==================
-def save_translation_to_db(user_id, sentence):
-    print(f"\nSentence entered into save_db function with \nuser_id: {user_id} \nSentence: {sentence}\n")
-    try:
-        existing = GestureTranslation.query.filter_by(user_id=user_id, translated_sentence=sentence).first()
-        if not existing:
-            new_translation = GestureTranslation(user_id=user_id, translated_sentence=sentence)
-            db.session.add(new_translation)
-            db.session.commit()
-            print(f"[DB] Saved: {sentence}")
-        else:
-            print(f"[DB] Duplicate not saved: {sentence}")
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        print(f"[DB ERROR] Failed to save sentence: {str(e)}")
-
-# ================== Real-Time Frame Generation ==================
-def generate_frames(user_id):
-    global current_sentence, final_sentence, prev_prediction
-    global hold_counter, last_hand_time, space_added, prediction_buffer
-    global final_sentences_history, last_letter_added, last_added_time
-    
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("Cannot open camera")
-        return
-
-    try:
-        while cap and cap.isOpened():
-            success, frame = cap.read()
-            if not success:
-                break
-
-            # Extract hand landmarks
-            data_np = extract_hand_landmarks(frame)
-
-            gesture_text = "Waiting for gesture..."
-            space_text = ""
-            display_current = current_sentence
-            display_final = final_sentence
-
-            if data_np is not None:
-                last_hand_time = time.time()
-                space_added = False
-
-                # Prediction and buffering
-                prediction = alpha_model.predict(data_np)[0]
-                prediction_buffer.append(prediction)
-
-                # Get most common prediction and its frequency
-                most_common_pred = Counter(prediction_buffer).most_common(1)[0]
-                stable_prediction, freq = most_common_pred
-
-                # Confidence filtering
-                if freq >= confidence_threshold:
-                    if stable_prediction == prev_prediction:
-                        hold_counter += 1
-                    else:
-                        hold_counter = 1
-                        prev_prediction = stable_prediction
-
-                    # Confirm gesture
-                    if hold_counter >= hold_threshold:
-                        current_time = time.time()
-                        
-                        # Check if this is a new letter or enough time has passed since same letter was added
-                        if stable_prediction != last_letter_added or (current_time - last_added_time) > letter_repeat_cooldown:
-                            current_sentence += stable_prediction
-                            print(f"[Letter Added] Current Sentence: {current_sentence}")
-                            
-                            last_letter_added = stable_prediction
-                            last_added_time = current_time
-                            
-                        # Reset the tracking
-                        hold_counter = 0
-                        prediction_buffer.clear()
-
-                    gesture_text = f"Gesture: {stable_prediction}"
-            
-            else:
-                # No hand detected
-                elapsed = time.time() - last_hand_time
-                
-                if elapsed > 3 and not space_added and not current_sentence.endswith(" "):
-                    current_sentence += " "
-                    space_text = "Space Added"
-                    space_added = True
-                    print(f"[Space] Current Sentence: {current_sentence}")
-                    
-                    # Reset duplicate letter tracking 
-
-                elif elapsed > 7:
-                    if current_sentence.strip():
-                        final_sentence = current_sentence.strip()
-                        final_sentences_history.append(final_sentence)
-                        
-                        # Store the final sentence in the db
-                        save_translation_to_db(user_id, final_sentence)
-                        print(f"[Final] Final Sentence: {final_sentence}")
-                        print(f"All sentence list: ", final_sentences_history)
-
-                        # Reset for next sentence
-                        current_sentence = ""
-                        prediction_buffer.clear()
-                        hold_counter = 0
-                        space_added = False
-                        last_letter_added = ""
-                        time.sleep(2)
-
-                    last_hand_time = time.time()
-
-            # Draw landmarks
-            results = hands.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            if results.multi_hand_landmarks:
-                for hand_landmarks in results.multi_hand_landmarks:
-                    mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-
-            # Display text overlays
-            cv2.putText(frame, gesture_text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,0), 2)
-            cv2.putText(frame, space_text, (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
-            cv2.putText(frame, f"Current: {display_current}", (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
-            cv2.putText(frame, f"Final: {display_final}", (50, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
-
-            _, buffer = cv2.imencode('.jpg', frame)
-            yield (b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-            
-    except GeneratorExit:
-        print("[Stream] Client disconnected")
-    except Exception as e:
-        print(f"[Stream Error] {str(e)}")
-    finally:
-        cap.release()
-        cv2.destroyAllWindows()
-        print("[Stream] Camera released properly")
-
-# ================== Upload file handler ==================
-def get_uploaded_file(file_key):
-    if file_key not in request.files:
-        return None, jsonify({"error": f"No {file_key} uploaded"}), 400
-    
-    file = request.files[file_key]
-    if file.filename == '':
-        return None, jsonify({"error": f"No selected {file_key} file"}), 400
-    
-    filename = secure_filename(file.filename)
-    
-    if file_key == "video":
-        file_path = os.path.join(VIDEO_FOLDER, filename)
-    else:
-        return "Plaese upload valid file"
-    
-    file.save(file_path)
-    
-    return file_path, None, 200 
-
-# ================== Upload file handler ==================
-def run_model_on_video(video_path):
-    """Process uploaded video, extract frames, and run emergency sign prediction."""
-    if not video_model or not cnn_model:
-        return "Model is not loaded."
-
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        return "Failed to open video file."
-
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    if frame_count < SEQUENCE_LENGTH:
-        cap.release()
-        return f"Video must have at least {SEQUENCE_LENGTH} frames."
-
-    frame_indices = np.linspace(0, frame_count - 1, SEQUENCE_LENGTH, dtype=int)
-    frames = []
-
-    for idx in frame_indices:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-        ret, frame = cap.read()
-        if not ret:
-            cap.release()
-            return "Failed to read frame during sampling."
-
-        frame = cv2.resize(frame, IMG_SIZE) / 255.0
-        frames.append(frame)
-
-    cap.release()
-
-    if len(frames) != SEQUENCE_LENGTH:
-        return "Could not extract sufficient frames from the video."
-
-    frames = np.array(frames).reshape(-1, *IMG_SIZE, 3)
-
-    try:
-        features = cnn_model.predict(frames, batch_size=16, verbose=0)
-        features = features.reshape(1, SEQUENCE_LENGTH, features.shape[-1])
-        prediction = video_model.predict(features)
-        predicted_class = np.argmax(prediction)
-    except Exception as e:
-        return f"Prediction failed: {str(e)}"
-
-    return CLASS_MAP.get(predicted_class, "Unknown")
-
-# ================== Fetching the media from the database ==================
-def fetch_media_from_db(media_type, category=None, char=None):
-    try:
-        if not all([media_type, category, char]):
-            print("[ORM] Missing required query parameters")
-            return None
-
-        query = MediaDataset.query.filter_by(media_type=media_type, category=category)
-
-        if media_type == "image":
-            query = query.filter(MediaDataset.file_path.ilike(f"%/{char.upper()}%"))
-        elif media_type == "video":
-            query = query.filter(MediaDataset.file_path.ilike(f"%{char.lower()}%"))
-        else:
-            print("[ORM] Unsupported media type")
-            return None
-
-        result = query.first()
-
-        if result:
-            return result.file_path.replace("\\", "/")
-        else:
-            print("[ORM] No matching media found")
-            return None
-
-    except SQLAlchemyError as e:
-        print(f"[ORM ERROR] {str(e)}")
-        return None
-    
+load_model()
     
 # ======================================================================== #
 # ================== Main routing ========================================
@@ -404,7 +74,7 @@ def process_video():
                 "result": result_text
             })
 
-        # Insert new record using SQLAlchemy ORM
+        # Insert new record using SQLAlchemy 
         new_upload = UserUpload(
             user_id=user_id,
             media_type="video",
@@ -633,7 +303,6 @@ def speech_to_text():
     except Exception as e:
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
-
 # ================== Text to speech conversion ==================
 @app.route('/text-to-speech', methods=['POST'])
 def text_to_speech():
@@ -704,27 +373,14 @@ def video_feed():
 
     return Response(wrapped_generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# @app.route('/video_feed')
-# def video_feed():
-#     user_id = session.get("user_id")
-
-#     @copy_current_request_context
-#     def wrapped_generate():
-#         try:
-#             return generate_frames(user_id)
-#         except Exception as e:
-#             print(f"[ERROR] in video_feed: {str(e)}")
-#             return iter([])  # Empty response stream
-
-#     return Response(wrapped_generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
 # ============ Sending the translated sentence in real time to frontend for display ==================
 @app.route('/get_translation')
 def get_translation():
+    # print(f"\n Sentence in get translation code of backend with \n Prev_prediction: {prev_prediction} \ncurrent_text: {current_sentence} \n Final Sentence: {final_sentence} \n")
     return jsonify({
-        "gesture": prev_prediction,
-        "current_text": current_sentence,
-        "final_sentence": final_sentence})
+        "gesture": realtime_utils.prev_prediction,
+        "current_text": realtime_utils.current_sentence,
+        "final_text": realtime_utils.final_sentence})
 
 # ================== Sending all the senetnces generated by user to store and display ==================
 @app.route('/get_all_sentences')

@@ -1,7 +1,7 @@
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+# model.py
 
-db = SQLAlchemy()
+from datetime import datetime
+from db_init import db
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -15,6 +15,7 @@ class MediaDataset(db.Model):
     __tablename__ = 'media_dataset'
     id = db.Column(db.Integer, primary_key=True)
     media_type = db.Column(db.String(10), nullable=False)
+    label = db.Column(db.String(20),nullable=False)
     file_path = db.Column(db.Text, unique=True, nullable=False)
     category = db.Column(db.String(100))
     description = db.Column(db.Text)

@@ -17,15 +17,6 @@ hamburger.addEventListener("click", () => {
   hamburger.classList.toggle("active");
 });
 
-// About page FAQ
-const faqItems = document.querySelectorAll(".faq-item");
-
-faqItems.forEach((item) => {
-  const question = item.querySelector(".faq-question");
-  question.addEventListener("click", () => {
-    item.classList.toggle("active");
-  });
-});
 
 // Services page functionality
 function showTranslation(type) {
@@ -33,24 +24,28 @@ function showTranslation(type) {
   const textToSignSection = document.getElementById("textToSignSection");
   const serviceCards = document.getElementById("serviceCards");
   const backButton = document.getElementById("backToServices");
+  const serviceIntro = document.getElementById("service-intro");
 
   if (type === "sign-to-text") {
     signToTextSection.style.display = "block";
     textToSignSection.style.display = "none";
     serviceCards.style.display = "none";
     backButton.style.display = "block";
+    serviceIntro.style.display = "none";
     stopCamera(); // Stop any existing camera feed
   } else if (type === "text-to-sign") {
     signToTextSection.style.display = "none";
     textToSignSection.style.display = "block";
     serviceCards.style.display = "none";
     backButton.style.display = "block";
+    serviceIntro.style.display = "none";
     stopCamera(); // Stop any existing camera feed
   } else {
     signToTextSection.style.display = "none";
     textToSignSection.style.display = "none";
     serviceCards.style.display = "grid";
     backButton.style.display = "none";
+    serviceIntro.style.display = "block";
     stopCamera(); // Ensure camera is stopped when going back
   }
 }

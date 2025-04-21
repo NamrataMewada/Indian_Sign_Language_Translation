@@ -1,6 +1,5 @@
-from app import app
-from model import db
+# db_init.py
 
-with app.app_context():
-    db.create_all()
-    print("\nTables created successfully!\n")
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
